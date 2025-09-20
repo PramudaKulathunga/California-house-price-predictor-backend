@@ -8,13 +8,26 @@ import os
 app = Flask(__name__)
 
 # Configure CORS for production
-CORS(app, origins=[
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://*.vercel.app",
-    "https://*.netlify.app",
-    "https://*.herokuapp.com"
-])
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', '').split(',')
+if not any(allowed_origins):
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://californiahouseprize.vercel.app",
+        "https://*.netlify.app"
+    ]
+
+print(f"Allowed origins: {allowed_origins}")
+
+CORS(app, origins=allowed_origins, supports_credentials=True)
+
+
+# Add OPTIONS handler for preflight requests
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # Load model and scaler with error handling
 try:
@@ -56,6 +69,9 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
     if model is None or scaler is None:
         return jsonify({
             'success': False,
